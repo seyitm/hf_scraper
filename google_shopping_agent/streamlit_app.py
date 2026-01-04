@@ -41,47 +41,61 @@ def init_session_state():
 
 def render_sidebar():
     """Render sidebar with configuration"""
-    st.sidebar.title("⚙️ Configuration")
+    st.sidebar.title("⚙️ Ayarlar")
     
-    # SERP API Configuration
-    st.sidebar.subheader("🔍 SERP API")
-    serp_api_key = st.sidebar.text_input(
-        "API Key",
-        type="password",
-        value=os.environ.get("SERP_API_KEY", ""),
-        help="Get your API key from serpapi.com"
-    )
+    # Check if secrets are configured (from Streamlit Cloud or env)
+    serp_from_env = os.environ.get("SERP_API_KEY", "")
+    supabase_url_from_env = os.environ.get("SUPABASE_URL", "")
+    supabase_key_from_env = os.environ.get("SUPABASE_ANON_KEY", "")
+    
+    # If all secrets are configured, don't show inputs
+    secrets_configured = serp_from_env and supabase_url_from_env and supabase_key_from_env
+    
+    if secrets_configured:
+        st.sidebar.success("✅ API bağlantıları yapılandırıldı")
+        serp_api_key = serp_from_env
+        supabase_url = supabase_url_from_env
+        supabase_key = supabase_key_from_env
+    else:
+        # Show manual configuration inputs
+        st.sidebar.subheader("🔍 SERP API")
+        serp_api_key = st.sidebar.text_input(
+            "API Key",
+            type="password",
+            value="",
+            help="Get your API key from serpapi.com"
+        )
+        
+        st.sidebar.subheader("🗄️ Supabase")
+        supabase_url = st.sidebar.text_input(
+            "Supabase URL",
+            value="",
+            help="Your Supabase project URL"
+        )
+        supabase_key = st.sidebar.text_input(
+            "Supabase Key",
+            type="password",
+            value="",
+            help="Your Supabase anon/service key"
+        )
     
     # Country/Language settings
+    st.sidebar.subheader("🌍 Bölge")
     col1, col2 = st.sidebar.columns(2)
     with col1:
         country = st.selectbox(
-            "Country",
+            "Ülke",
             ["tr", "us", "uk", "de", "fr"],
             index=0,
-            help="Google Shopping country"
+            help="Google Shopping ülkesi"
         )
     with col2:
         language = st.selectbox(
-            "Language", 
+            "Dil", 
             ["tr", "en", "de", "fr"],
             index=0,
-            help="Search language"
+            help="Arama dili"
         )
-    
-    # Supabase Configuration
-    st.sidebar.subheader("🗄️ Supabase")
-    supabase_url = st.sidebar.text_input(
-        "Supabase URL",
-        value=os.environ.get("SUPABASE_URL", ""),
-        help="Your Supabase project URL"
-    )
-    supabase_key = st.sidebar.text_input(
-        "Supabase Key",
-        type="password",
-        value=os.environ.get("SUPABASE_ANON_KEY", ""),
-        help="Your Supabase anon/service key"
-    )
     
     # Store configuration in session state
     if serp_api_key:

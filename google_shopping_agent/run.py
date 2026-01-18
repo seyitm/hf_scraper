@@ -143,7 +143,8 @@ async def main():
             # Run full agent
             result = await agent.run(
                 max_queries=args.max_queries,
-                min_discount=args.min_discount
+                min_discount=args.min_discount,
+                category=args.category
             )
             
             # Print summary

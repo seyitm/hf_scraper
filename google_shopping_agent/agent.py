@@ -182,7 +182,8 @@ class GoogleShoppingAgent:
     async def run(
         self,
         max_queries: int = 20,
-        min_discount: float = None
+        min_discount: float = None,
+        category: Optional[str] = None
     ) -> AgentResult:
         """
         Run the Google Shopping agent
@@ -190,6 +191,7 @@ class GoogleShoppingAgent:
         Args:
             max_queries: Maximum number of search queries to process
             min_discount: Minimum discount percentage (uses config default if not specified)
+            category: Optional category filter for search queries
             
         Returns:
             AgentResult with execution statistics
@@ -204,6 +206,13 @@ class GoogleShoppingAgent:
         
         # Gather search queries (can still read from Supabase for query generation)
         queries = await self.gather_search_queries()
+        
+        # Filter by category if specified
+        if category:
+            category_lower = category.lower()
+            queries = [q for q in queries if category_lower in q.keyword.lower()]
+            logger.info(f"Filtered to {len(queries)} queries matching category '{category}'")
+        
         queries = queries[:max_queries]  # Limit queries
         
         # Search Google Shopping

@@ -36,7 +36,7 @@ class SerpApiClient:
             "gl": self.config.country,
             "hl": self.config.language,
             "google_domain": self.config.google_domain,
-            "num": self.config.default_num_results,
+            "num": query.num_results or self.config.default_num_results,
         }
         
         # Add optional filters
@@ -52,6 +52,22 @@ class SerpApiClient:
         # Sorting: None=relevance (best results), 1=price low-high, 2=price high-low
         if query.sort_by:
             params["sort_by"] = query.sort_by
+        
+        # Time filter: qdr:d=24h, qdr:w=week, qdr:m=month, qdr:y=year
+        if query.time_period:
+            params["tbs"] = query.time_period
+        
+        # Condition filter: new, used, refurbished
+        if query.condition:
+            params["condition"] = query.condition
+        
+        # Free shipping filter
+        if query.free_shipping:
+            params["free_shipping"] = "true"
+        
+        # Local sellers only
+        if query.local_sellers:
+            params["local_sellers"] = "true"
         
         return params
     

@@ -82,6 +82,13 @@ class SearchQuery:
     on_sale: bool = True  # Default to searching for discounted items
     sort_by: Optional[str] = None  # None=relevance, '1'=price low-high, '2'=price high-low
     min_rating: Optional[float] = None  # Minimum product rating (e.g., 4.0)
+    time_period: Optional[str] = None  # qdr:d=24h, qdr:w=week, qdr:m=month
+    
+    # Additional SERP API filters
+    condition: Optional[str] = None  # 'new', 'used', 'refurbished'
+    free_shipping: bool = False  # Only show free shipping items
+    local_sellers: bool = False  # Only show local sellers
+    num_results: int = 40  # Number of results to fetch
     
     # Metadata
     last_searched: Optional[datetime] = None

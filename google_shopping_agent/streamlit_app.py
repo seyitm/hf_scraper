@@ -5,6 +5,10 @@ import streamlit as st
 import asyncio
 import json
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 from datetime import datetime
 from typing import Optional, List
 import pandas as pd
@@ -105,12 +109,16 @@ def render_sidebar():
             language=language
         )
     
+    # Service role key for admin operations (bypasses RLS)
+    supabase_service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+
     # Initialize Supabase client
     if supabase_url and supabase_key:
         try:
             supabase_config = SupabaseConfig(
                 url=supabase_url,
-                anon_key=supabase_key
+                anon_key=supabase_key,
+                service_role_key=supabase_service_key  # Pass service key if available
             )
             st.session_state.supabase_client = HarbiSupabaseClient(supabase_config).connect()
             st.sidebar.success("✅ Supabase bağlandı")
@@ -293,27 +301,50 @@ def send_to_approval(selected_products: List[ShoppingProduct]):
         st.error("Supabase bağlantısı yok!")
         return 0
     
+    # Get system user ID from environment (for automated submissions)
+    system_user_id = os.environ.get("SYSTEM_USER_ID")
+    if not system_user_id:
+        st.error("SYSTEM_USER_ID environment variable is required for automated submissions. Add it to your .env file.")
+        return 0
+    
     client = st.session_state.supabase_client
     count = 0
     
     for product in selected_products:
         try:
-            # Create deal for approval
+            import re
+            import uuid
+            
+            # Generate slug from title
+            slug_base = re.sub(r'[^a-z0-9]+', '-', product.title.lower())
+            slug = f"{slug_base[:50]}-{uuid.uuid4().hex[:8]}"
+            
+            # Calculate prices
+            original_price = product.original_price or product.price
+            discounted_price = product.price
+            discount_pct = product.calculate_discount_percentage() or 0
+            
+            # Build description
+            desc_parts = [f"Google Shopping'den bulunan ürün. Mağaza: {product.source}"]
+            if product.rating:
+                desc_parts.append(f"Rating: {product.rating}/5")
+            if product.reviews:
+                desc_parts.append(f"({product.reviews} yorum)")
+            description = " | ".join(desc_parts)
+            
+            # Create deal matching the actual Supabase schema
             deal_data = {
-                'title': product.title,
-                'description': f"Google Shopping'den bulunan ürün. Mağaza: {product.source}",
-                'price': product.price,
-                'original_price': product.original_price,
-                'discount_percentage': product.calculate_discount_percentage(),
-                'url': product.product_link,
+                'slug': slug,
+                'title': product.title[:200],
+                'description': description,
+                'original_price': round(original_price, 2),
+                'discounted_price': round(discounted_price, 2),
+                'discount_percentage': round(discount_pct, 2),
+                'currency': 'TRY',
+                'affiliate_url': product.product_link or '',
                 'image_url': product.thumbnail,
-                'source': 'google_shopping',
-                'store_name': product.source,
                 'status': 'pending',  # Admin onayı bekliyor
-                'external_id': product.product_id,
-                'rating': product.rating,
-                'reviews_count': product.reviews,
-                'created_at': datetime.now().isoformat()
+                'posted_by': system_user_id,  # Required - system user for automated posts
             }
             
             # Insert into deals table with pending status
@@ -483,8 +514,10 @@ def main():
                     st.info(f"📦 {selected_count} ürün seçildi")
             
             with col_action:
-                if st.button("📤 Seçilenleri Onaya Gönder", type="primary", disabled=selected_count == 0):
-                    if not st.session_state.supabase_client:
+                if st.button("📤 Seçilenleri Onaya Gönder", type="primary"):
+                    if len(st.session_state.selected_products) == 0:
+                        st.warning("Lütfen önce ürün seçin!")
+                    elif not st.session_state.supabase_client:
                         st.error("Supabase bağlantısı gerekli!")
                     else:
                         # Get selected products
